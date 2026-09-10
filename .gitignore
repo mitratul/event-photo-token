@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 codes_*.txt
 qr_output_*/
+.claude/settings.local.json
