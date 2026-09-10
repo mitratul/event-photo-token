@@ -76,8 +76,3 @@ python3 generate_qr.py codes_20260910_153045.txt
 - Run `python3 generate_codes.py 500 2>/dev/null | python3 generate_qr.py` — confirm a `qr_output_*/` directory is created containing one `.png` per code, filenames matching the dashed codes, and each QR decodes back to the dash-free code (spot check by scanning one).
 - Run `python3 generate_qr.py codes_20260910_153045.txt` separately to confirm file-input mode also works.
 - Post-label changes: open a saved PNG and confirm it's `RGBA` with alpha `0` on background pixels and `255` on QR modules/text (`PIL.Image.open(path).getpixel(...)`), and that the label's opaque-pixel x-range spans essentially the same width as the QR (checked to within a few px, since `fit_font_to_width` only guarantees `<=` target width).
-
-## Usage
-- `.venv/bin/python3 generate_codes.py 100 2>/dev/null | .venv/bin/python3 generate_qr.py`
-- `.venv/bin/python3 generate_codes.py 100`
-- `.venv/bin/python3 generate_qr.py codes_<timestamp>.txt`
