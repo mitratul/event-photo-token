@@ -40,14 +40,26 @@ qrcode[pil]
 
 ### `generate_qr.py` (module 2)
 - `read_codes(source) -> list[str]`: reads lines from either a given file path (CLI arg) or stdin (pipe/interactive), strips whitespace, skips blank lines, returns the raw lines **as given** (dashes intact).
+- `make_labeled_qr(raw, label) -> Image.Image`: builds the actual saved image (see "Changes made after the initial plan" below) — QR with a transparent background, labeled underneath with the dashed code in a width-fitted monospace font.
 - `main()`:
   - `argparse` with an optional positional `file` path. If provided, read codes from that file; otherwise read from stdin (supports both piped input and manually pasted/typed input followed by EOF).
   - Create output directory `qr_output_<YYYYmmdd_HHMMSS>/` (timestamp = script execution time), via `pathlib.Path.mkdir(parents=True)`.
   - For each input line (the original code, dashes intact, used as the filename stem):
     - Strip `-` to get the raw code → this is the QR payload data.
-    - Generate the QR with `qrcode.make(raw_code)`.
+    - Generate the labeled image via `make_labeled_qr(raw_code, code)`.
     - Save as `<output_dir>/<original_code_with_dashes>.png`.
   - Print each saved file path to stdout as it's written, and a final summary line with the output directory path.
+
+## Changes made after the initial plan
+Two follow-up requests changed `generate_qr.py` beyond the original "bare QR PNG" design above:
+
+1. **Label the code under the QR, transparent background** — so each PNG is self-checkable without scanning, and prints cleanly on colored paper:
+   - `qrcode.make(raw).convert("RGBA")` is color-keyed (white pixels → alpha 0) instead of kept as opaque white.
+   - The label (original code, dashes intact) is drawn in opaque black beneath the QR on a fully transparent `RGBA` canvas, composited via `canvas.paste(qr_img, ..., qr_img)` so the QR's own alpha carries over.
+2. **Monospace font, width-matched to the QR** — the label now renders in a real monospace font (Courier-New-style) sized so its rendered width equals the QR image's pixel width:
+   - `find_monospace_font()` searches a short list of common install paths (Liberation Mono first, then DejaVu Sans Mono) and returns the first that exists; `liberation-mono-fonts` was installed on this machine via `sudo dnf install -y liberation-mono-fonts` (explicitly "a replacement for Microsoft Courier New"; not available as a pip package, so it needs to be present as a system font — Debian/Ubuntu equivalent path also included as a fallback candidate).
+   - If no monospace font is found, `load_font()` falls back to `ImageFont.load_default(size=...)` and `main()` prints a one-time stderr warning — width-matching still works, just without the true monospace look.
+   - `fit_font_to_width()` binary-searches font point size (4–400) for the largest size whose rendered label width is `<=` the QR's pixel width.
 
 ## Manual chaining (by the user, not automatic)
 ```bash
@@ -63,3 +75,9 @@ python3 generate_qr.py codes_20260910_153045.txt
 - Confirm no code contains `0/O/1/I/L` and all codes in one run are unique (`sort -u` count matches).
 - Run `python3 generate_codes.py 500 2>/dev/null | python3 generate_qr.py` — confirm a `qr_output_*/` directory is created containing one `.png` per code, filenames matching the dashed codes, and each QR decodes back to the dash-free code (spot check by scanning one).
 - Run `python3 generate_qr.py codes_20260910_153045.txt` separately to confirm file-input mode also works.
+- Post-label changes: open a saved PNG and confirm it's `RGBA` with alpha `0` on background pixels and `255` on QR modules/text (`PIL.Image.open(path).getpixel(...)`), and that the label's opaque-pixel x-range spans essentially the same width as the QR (checked to within a few px, since `fit_font_to_width` only guarantees `<=` target width).
+
+## Usage
+- `.venv/bin/python3 generate_codes.py 100 2>/dev/null | .venv/bin/python3 generate_qr.py`
+- `.venv/bin/python3 generate_codes.py 100`
+- `.venv/bin/python3 generate_qr.py codes_<timestamp>.txt`
