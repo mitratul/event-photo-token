@@ -68,8 +68,8 @@ Follow-up requests changed `generate_qr.py` beyond the original "bare QR PNG" de
    - `load_qr_images()` globs `*.png` in that directory, sorted, excluding any pre-existing `merged_*.png` (so re-running on an already-merged directory doesn't re-merge its own output).
    - Each image is resized to a fixed target width (`TARGET_QR_WIDTH_IN = 1.7`in, aspect ratio preserved) — this yields a 3-column × 4-row grid (12 per page) within a letter page's 0.5in margins and 0.25in gutters at 300 DPI. (An initial 2.5in target only fit 2×3 = 6/page, since the code label makes each image notably taller than wide — sized down after confirming with the user.)
    - Images are chunked into pages of `columns * rows`; each page is a transparent `RGBA` canvas with the grid centered in the usable area.
-   - Pages are saved back into the same input directory as `merged_001.png`, `merged_002.png`, ... (zero-padded to at least 3 digits, or wider if there are ≥1000 pages).
-   - Each saved page's path (`<directory>/merged_NNN.png`) prints to stdout as it's written; a human-readable summary line goes to stderr.
+   - Pages are saved as `merged_001.png`, `merged_002.png`, ... (zero-padded to at least 3 digits, or wider if there are ≥1000 pages) into a **sibling** output directory `<input_dir_name>_merged` (`directory.parent / f"{directory.name}_merged"`, created with `mkdir(parents=True, exist_ok=True)`) — not inside the input directory itself. E.g. input `qr_output_20260910_231336/` → output `qr_output_20260910_231336_merged/`. `exist_ok=True` means re-running the merge on the same input just overwrites the previous `merged_NNN.png` files.
+   - Each saved page's path (`<input_dir_name>_merged/merged_NNN.png`) prints to stdout as it's written; a human-readable summary line goes to stderr.
 
 ## Manual chaining (by the user, not automatic)
 ```bash
@@ -77,7 +77,7 @@ python3 generate_codes.py 100 2>/dev/null | python3 generate_qr.py 2>/dev/null |
 # or step by step
 python3 generate_codes.py 100        # note filename printed on stderr
 python3 generate_qr.py codes_20260910_153045.txt   # per-file paths on stderr, output dir on stdout
-python3 merge_qr_images.py qr_output_20260910_153050
+python3 merge_qr_images.py qr_output_20260910_153050   # writes to sibling qr_output_20260910_153050_merged/
 ```
 
 ## Verification
@@ -87,6 +87,6 @@ python3 merge_qr_images.py qr_output_20260910_153050
 - Run `python3 generate_codes.py 500 2>/dev/null | python3 generate_qr.py` — confirm a `qr_output_*/` directory is created containing one `.png` per code, filenames matching the dashed codes, and each QR decodes back to the dash-free code (spot check by scanning one).
 - Run `python3 generate_qr.py codes_20260910_153045.txt` separately to confirm file-input mode also works.
 - Post-label changes: open a saved PNG and confirm it's `RGBA` with alpha `0` on background pixels and `255` on QR modules/text (`PIL.Image.open(path).getpixel(...)`), and that the label's opaque-pixel x-range spans essentially the same width as the QR (checked to within a few px, since `fit_font_to_width` only guarantees `<=` target width).
-- Module 3: run `generate_codes.py 30 2>/dev/null | generate_qr.py 2>/dev/null | merge_qr_images.py`, confirm it prints `merged_NNN.png` paths for `ceil(30/12) = 3` pages in the `qr_output_*/` directory, each page is `2550x3300` px (letter @ 300 DPI) `RGBA` with transparent corners (`getpixel((0,0))[3] == 0`), and a visual check (composite onto white) shows a centered, non-overlapping 3×4 grid with legible labels.
+- Module 3: run `generate_codes.py 30 2>/dev/null | generate_qr.py 2>/dev/null | merge_qr_images.py`, confirm it prints `merged_NNN.png` paths for `ceil(30/12) = 3` pages in a **sibling** `qr_output_*_merged/` directory (not inside the `qr_output_*/` input directory, which should have zero `merged_*.png` files), each page is `2550x3300` px (letter @ 300 DPI) `RGBA` with transparent corners (`getpixel((0,0))[3] == 0`), and a visual check (composite onto white) shows a centered, non-overlapping 3×4 grid with legible labels. Re-running `merge_qr_images.py` on the same input directory should overwrite the existing `_merged` directory's files without erroring.
 - Confirm `generate_qr.py`'s stdout is *only* the directory name (no file-path lines mixed in) so the 3-stage pipe works end-to-end without extra parsing.
 - Series character: `generate_codes.py 5 2` — confirm all 5 codes start with `2` (e.g. `2ADC-97XX`); `generate_codes.py 5 a` — confirm lowercase is upper-cased to `A...`; `generate_codes.py 5 O` and `generate_codes.py 5 AB` — confirm both are rejected with a `parser.error`; `generate_codes.py 50 Z 2>/dev/null | sort -u | wc -l` — confirm all 50 remain unique.

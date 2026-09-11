@@ -90,13 +90,16 @@ def main() -> None:
 
     pages = build_pages(image_paths)
 
+    out_dir = directory.parent / f"{directory.name}_merged"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     width = len(str(len(pages)))
     for i, page in enumerate(pages, start=1):
-        out_path = directory / f"merged_{i:0{max(width, 3)}d}.png"
+        out_path = out_dir / f"merged_{i:0{max(width, 3)}d}.png"
         page.save(out_path)
         print(out_path)
 
-    print(f"Merged {len(image_paths)} QR images into {len(pages)} page(s) in {directory}/", file=sys.stderr)
+    print(f"Merged {len(image_paths)} QR images into {len(pages)} page(s) in {out_dir}/", file=sys.stderr)
 
 
 if __name__ == "__main__":

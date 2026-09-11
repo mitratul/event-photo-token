@@ -70,7 +70,7 @@ Merges all QR images in a directory into letter-sized (8.5×11in, 300 DPI), prin
 ```
 
 - Reads every `*.png` in the directory (skipping any `merged_*.png` from a previous run).
-- Saves merged pages back into the same directory as `merged_001.png`, `merged_002.png`, etc.
+- Saves merged pages as `merged_001.png`, `merged_002.png`, etc. into a **sibling** directory named `<input_dir_name>_merged` — e.g. input `qr_output_20260910_153045/` → output `qr_output_20260910_153045_merged/`. Re-running on the same input overwrites the previous merged pages.
 
 ## Example end-to-end run
 
@@ -78,4 +78,4 @@ Merges all QR images in a directory into letter-sized (8.5×11in, 300 DPI), prin
 .venv/bin/python3 generate_codes.py 500 2>/dev/null | .venv/bin/python3 generate_qr.py 2>/dev/null | .venv/bin/python3 merge_qr_images.py
 ```
 
-This generates 500 unique codes, a `qr_output_<timestamp>/` directory containing 500 labeled QR PNGs, and — in the same directory — ~42 `merged_NNN.png` pages ready to print.
+This generates 500 unique codes, a `qr_output_<timestamp>/` directory containing 500 labeled QR PNGs, and a sibling `qr_output_<timestamp>_merged/` directory with ~42 `merged_NNN.png` pages ready to print.
