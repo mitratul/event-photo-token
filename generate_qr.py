@@ -111,9 +111,10 @@ def main() -> None:
         img = make_labeled_qr(raw, code)
         out_path = out_dir / f"{code}.png"
         img.save(out_path)
-        print(out_path)
+        print(out_path, file=sys.stderr)
 
     print(f"Saved {len(codes)} QR codes to {out_dir}/", file=sys.stderr)
+    print(out_dir)
 
 
 if __name__ == "__main__":

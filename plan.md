@@ -1,9 +1,10 @@
-# Event Photo Token — Code Generator + QR Generator
+# Event Photo Token — Code Generator + QR Generator + Sheet Merger
 
 ## Context
-This is a new, empty project directory. The goal is a small Python toolkit with two independent, manually-triggered scripts:
+This is a new, empty project directory. The goal is a small Python toolkit with independent, manually-triggered scripts:
 1. Generate unique, human-readable alphanumeric codes to identify event attendees/photo-token holders.
 2. Generate a QR code image for each such code, on demand (not auto-chained).
+3. Merge those QR images into printable, letter-sized sheets (added later — see "Changes made after the initial plan").
 
 The codes must avoid visually-confusing characters (0/O, 1/I/L, etc.) since they'll likely be printed/read by humans, and must be unique enough that a mistyped code never collides with a different real user's code.
 
@@ -51,7 +52,7 @@ qrcode[pil]
   - Print each saved file path to stdout as it's written, and a final summary line with the output directory path.
 
 ## Changes made after the initial plan
-Two follow-up requests changed `generate_qr.py` beyond the original "bare QR PNG" design above:
+Follow-up requests changed `generate_qr.py` beyond the original "bare QR PNG" design above, and added a third module:
 
 1. **Label the code under the QR, transparent background** — so each PNG is self-checkable without scanning, and prints cleanly on colored paper:
    - `qrcode.make(raw).convert("RGBA")` is color-keyed (white pixels → alpha 0) instead of kept as opaque white.
@@ -60,13 +61,22 @@ Two follow-up requests changed `generate_qr.py` beyond the original "bare QR PNG
    - `find_monospace_font()` searches a short list of common install paths (Liberation Mono first, then DejaVu Sans Mono) and returns the first that exists; `liberation-mono-fonts` was installed on this machine via `sudo dnf install -y liberation-mono-fonts` (explicitly "a replacement for Microsoft Courier New"; not available as a pip package, so it needs to be present as a system font — Debian/Ubuntu equivalent path also included as a fallback candidate).
    - If no monospace font is found, `load_font()` falls back to `ImageFont.load_default(size=...)` and `main()` prints a one-time stderr warning — width-matching still works, just without the true monospace look.
    - `fit_font_to_width()` binary-searches font point size (4–400) for the largest size whose rendered label width is `<=` the QR's pixel width.
+3. **`generate_qr.py` stdout/stderr swap, for piping into module 3** — per-file save-path lines moved to **stderr**; **stdout** now prints only the bare output directory name (`out_dir`, one line), so `generate_qr.py`'s stdout can be piped directly as the directory argument to `merge_qr_images.py`.
+4. **New module: `merge_qr_images.py`** (module 3) — merges the QR images in a directory into letter-sized (8.5×11in @ 300 DPI), printable sheets:
+   - Takes the directory as a positional CLI arg, **or reads one line from stdin** if omitted (`args.directory or sys.stdin.readline().strip()`) — this is what lets it sit at the end of the pipe: `generate_codes.py N | generate_qr.py | merge_qr_images.py`.
+   - `load_qr_images()` globs `*.png` in that directory, sorted, excluding any pre-existing `merged_*.png` (so re-running on an already-merged directory doesn't re-merge its own output).
+   - Each image is resized to a fixed target width (`TARGET_QR_WIDTH_IN = 1.7`in, aspect ratio preserved) — this yields a 3-column × 4-row grid (12 per page) within a letter page's 0.5in margins and 0.25in gutters at 300 DPI. (An initial 2.5in target only fit 2×3 = 6/page, since the code label makes each image notably taller than wide — sized down after confirming with the user.)
+   - Images are chunked into pages of `columns * rows`; each page is a transparent `RGBA` canvas with the grid centered in the usable area.
+   - Pages are saved back into the same input directory as `merged_001.png`, `merged_002.png`, ... (zero-padded to at least 3 digits, or wider if there are ≥1000 pages).
+   - Each saved page's path (`<directory>/merged_NNN.png`) prints to stdout as it's written; a human-readable summary line goes to stderr.
 
 ## Manual chaining (by the user, not automatic)
 ```bash
-python3 generate_codes.py 100 2>/dev/null | python3 generate_qr.py
-# or
+python3 generate_codes.py 100 2>/dev/null | python3 generate_qr.py 2>/dev/null | python3 merge_qr_images.py
+# or step by step
 python3 generate_codes.py 100        # note filename printed on stderr
-python3 generate_qr.py codes_20260910_153045.txt
+python3 generate_qr.py codes_20260910_153045.txt   # per-file paths on stderr, output dir on stdout
+python3 merge_qr_images.py qr_output_20260910_153050
 ```
 
 ## Verification
@@ -76,3 +86,5 @@ python3 generate_qr.py codes_20260910_153045.txt
 - Run `python3 generate_codes.py 500 2>/dev/null | python3 generate_qr.py` — confirm a `qr_output_*/` directory is created containing one `.png` per code, filenames matching the dashed codes, and each QR decodes back to the dash-free code (spot check by scanning one).
 - Run `python3 generate_qr.py codes_20260910_153045.txt` separately to confirm file-input mode also works.
 - Post-label changes: open a saved PNG and confirm it's `RGBA` with alpha `0` on background pixels and `255` on QR modules/text (`PIL.Image.open(path).getpixel(...)`), and that the label's opaque-pixel x-range spans essentially the same width as the QR (checked to within a few px, since `fit_font_to_width` only guarantees `<=` target width).
+- Module 3: run `generate_codes.py 30 2>/dev/null | generate_qr.py 2>/dev/null | merge_qr_images.py`, confirm it prints `merged_NNN.png` paths for `ceil(30/12) = 3` pages in the `qr_output_*/` directory, each page is `2550x3300` px (letter @ 300 DPI) `RGBA` with transparent corners (`getpixel((0,0))[3] == 0`), and a visual check (composite onto white) shows a centered, non-overlapping 3×4 grid with legible labels.
+- Confirm `generate_qr.py`'s stdout is *only* the directory name (no file-path lines mixed in) so the 3-stage pipe works end-to-end without extra parsing.

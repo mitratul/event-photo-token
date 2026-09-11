@@ -1,9 +1,10 @@
 # event-photo-token
 
-Two independent, manually-triggered scripts for generating unique attendee codes and QR codes for them.
+Three independent, manually-triggered scripts for generating unique attendee codes, QR codes for them, and printable sheets of those QR codes.
 
 1. `generate_codes.py` — generates unique, human-readable alphanumeric codes.
 2. `generate_qr.py` — generates a labeled QR code image for each code.
+3. `merge_qr_images.py` — merges QR images from a directory into printable, letter-sized sheets.
 
 ## Setup
 
@@ -51,10 +52,27 @@ For each code:
 - The image is saved as `<code-with-dashes>.png` (dashes kept in the filename) inside a fresh `qr_output_<timestamp>/` directory.
 - The QR has a **transparent background** (safe to print on colored paper) with the dashed code rendered underneath it in a monospace font, sized so the label spans the same width as the QR code.
 
+Per-file save paths print to **stderr**; **stdout** prints only the output directory name, so it can be piped straight into `merge_qr_images.py`.
+
+## 3. Merge into printable sheets — `merge_qr_images.py`
+
+Merges all QR images in a directory into letter-sized (8.5×11in, 300 DPI), print-ready sheets — a centered 3×4 grid (12 QR codes per page) with a transparent background. **Not triggered automatically** — run it yourself, pointing it at a directory or piping one in.
+
+```bash
+# directory as an argument
+.venv/bin/python3 merge_qr_images.py qr_output_20260910_153045
+
+# or piped in (e.g. straight from generate_qr.py)
+.venv/bin/python3 generate_codes.py 100 2>/dev/null | .venv/bin/python3 generate_qr.py 2>/dev/null | .venv/bin/python3 merge_qr_images.py
+```
+
+- Reads every `*.png` in the directory (skipping any `merged_*.png` from a previous run).
+- Saves merged pages back into the same directory as `merged_001.png`, `merged_002.png`, etc.
+
 ## Example end-to-end run
 
 ```bash
-.venv/bin/python3 generate_codes.py 500 2>/dev/null | .venv/bin/python3 generate_qr.py
+.venv/bin/python3 generate_codes.py 500 2>/dev/null | .venv/bin/python3 generate_qr.py 2>/dev/null | .venv/bin/python3 merge_qr_images.py
 ```
 
-This generates 500 unique codes and, in one step, a `qr_output_<timestamp>/` directory containing 500 labeled QR PNGs, one per code.
+This generates 500 unique codes, a `qr_output_<timestamp>/` directory containing 500 labeled QR PNGs, and — in the same directory — ~42 `merged_NNN.png` pages ready to print.
