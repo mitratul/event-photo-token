@@ -29,7 +29,10 @@ Generates the requested number of unique 8-character codes from an alphabet that
 ```bash
 .venv/bin/python3 generate_codes.py 100        # count as an argument
 .venv/bin/python3 generate_codes.py            # or omit it to be prompted interactively
+.venv/bin/python3 generate_codes.py 100 2      # optional series character: every code starts with '2', e.g. 2ADC-97XX
 ```
+
+The optional second argument is a single **series character** (any character from the same alphabet, e.g. `2`, `9`, `A`, `Z`) that every generated code will start with — useful for batching codes by category while keeping them visually distinguishable at a glance. Lowercase is upper-cased automatically; an invalid character (multiple characters, or one outside the allowed alphabet) is rejected with an error. Omit it for fully random codes.
 
 - Prints one code per line to **stdout**.
 - Also saves the same codes to `codes_<timestamp>.txt` in the current directory.

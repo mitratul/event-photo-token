@@ -11,14 +11,15 @@ CODE_LENGTH = 8
 GROUP_SIZE = 4
 
 
-def generate_code() -> str:
-    return "".join(secrets.choice(ALPHABET) for _ in range(CODE_LENGTH))
+def generate_code(prefix: str = "") -> str:
+    remaining = CODE_LENGTH - len(prefix)
+    return prefix + "".join(secrets.choice(ALPHABET) for _ in range(remaining))
 
 
-def generate_unique_codes(count: int) -> list[str]:
+def generate_unique_codes(count: int, prefix: str = "") -> list[str]:
     codes: set[str] = set()
     while len(codes) < count:
-        codes.add(generate_code())
+        codes.add(generate_code(prefix))
     return list(codes)
 
 
@@ -39,7 +40,20 @@ def prompt_for_count() -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate unique human-readable codes.")
     parser.add_argument("count", type=int, nargs="?", help="number of codes to generate")
+    parser.add_argument(
+        "series",
+        type=str,
+        nargs="?",
+        help=f"single series character to prefix every code with, one of: {ALPHABET} "
+        "(omit for fully random codes)",
+    )
     args = parser.parse_args()
+
+    series = args.series
+    if series is not None:
+        series = series.upper()
+        if len(series) != 1 or series not in ALPHABET:
+            parser.error(f"series character must be a single character from: {ALPHABET}")
 
     count = args.count
     if count is None:
@@ -47,7 +61,7 @@ def main() -> None:
     elif count <= 0:
         parser.error("count must be a positive integer")
 
-    codes = [format_code(c) for c in generate_unique_codes(count)]
+    codes = [format_code(c) for c in generate_unique_codes(count, series or "")]
 
     for code in codes:
         print(code)

@@ -29,12 +29,13 @@ qrcode[pil]
 
 ### `generate_codes.py` (module 1)
 - Constants: `ALPHABET`, `CODE_LENGTH = 8`, `GROUP_SIZE = 4`.
-- `generate_code() -> str`: build one random 8-char code using `secrets.choice(ALPHABET)` per character.
-- `generate_unique_codes(count: int) -> list[str]`: loop calling `generate_code()`, add to a `set` until it holds `count` unique codes.
-- `format_code(code: str) -> str`: insert `-` every `GROUP_SIZE` characters (e.g. `XJ7KQP3M` → `XJ7K-QP3M`).
+- `generate_code(prefix: str = "") -> str`: build an 8-char code — `prefix` (0 or 1 char) fixed at the start, remaining `CODE_LENGTH - len(prefix)` chars from `secrets.choice(ALPHABET)`.
+- `generate_unique_codes(count: int, prefix: str = "") -> list[str]`: loop calling `generate_code(prefix)`, add to a `set` until it holds `count` unique codes.
+- `format_code(code: str) -> str`: insert `-` every `GROUP_SIZE` characters (e.g. `XJ7KQP3M` → `XJ7K-QP3M`; a series-prefixed code like `2ADC97XX` → `2ADC-97XX`).
 - `main()`:
-  - `argparse` with an optional positional `count` (int). If omitted, prompt interactively: `"How many codes do you need? "`, validate it's a positive integer (re-prompt or exit with error on bad input).
-  - Generate codes, format each with dashes.
+  - `argparse` with two optional positionals: `count` (int) and `series` (single "series character" prefixed onto every generated code, e.g. `generate_codes.py 100 2` → all codes start with `2`, like `2ADC-97XX`). If `count` is omitted, prompt interactively: `"How many codes do you need? "`, validate it's a positive integer (re-prompt or exit with error on bad input). `series` is optional — omitting it keeps the original fully-random 8-char behavior.
+  - `series` is upper-cased and validated to be exactly one character present in `ALPHABET` (`parser.error(...)` otherwise, e.g. rejects `O`/`1`/`I`/`L`/`0` or multi-character input).
+  - Generate codes via `generate_unique_codes(count, series or "")`, format each with dashes.
   - Print each formatted code to **stdout**, one per line (kept clean/pure so it can be piped straight into module 2).
   - Build filename `codes_<YYYYmmdd_HHMMSS>.txt`, write the same formatted codes (one per line) to it in the current directory.
   - Print a status line with the filename to **stderr** (e.g. `Saved 500 codes to codes_20260910_153045.txt`) — keeps stdout pipeable while still surfacing the filename to the user's terminal.
@@ -88,3 +89,4 @@ python3 merge_qr_images.py qr_output_20260910_153050
 - Post-label changes: open a saved PNG and confirm it's `RGBA` with alpha `0` on background pixels and `255` on QR modules/text (`PIL.Image.open(path).getpixel(...)`), and that the label's opaque-pixel x-range spans essentially the same width as the QR (checked to within a few px, since `fit_font_to_width` only guarantees `<=` target width).
 - Module 3: run `generate_codes.py 30 2>/dev/null | generate_qr.py 2>/dev/null | merge_qr_images.py`, confirm it prints `merged_NNN.png` paths for `ceil(30/12) = 3` pages in the `qr_output_*/` directory, each page is `2550x3300` px (letter @ 300 DPI) `RGBA` with transparent corners (`getpixel((0,0))[3] == 0`), and a visual check (composite onto white) shows a centered, non-overlapping 3×4 grid with legible labels.
 - Confirm `generate_qr.py`'s stdout is *only* the directory name (no file-path lines mixed in) so the 3-stage pipe works end-to-end without extra parsing.
+- Series character: `generate_codes.py 5 2` — confirm all 5 codes start with `2` (e.g. `2ADC-97XX`); `generate_codes.py 5 a` — confirm lowercase is upper-cased to `A...`; `generate_codes.py 5 O` and `generate_codes.py 5 AB` — confirm both are rejected with a `parser.error`; `generate_codes.py 50 Z 2>/dev/null | sort -u | wc -l` — confirm all 50 remain unique.
